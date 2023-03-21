@@ -1,0 +1,82 @@
+import boto3
+import json
+
+os = boto3.client('es')
+client = boto3.client('lexv2-runtime', region_name='us-east-1')
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+REGION = 'us-east-1'
+INDEX = 'photos'
+HOST = 'https://vpc-photos-3ovexijakbdotzinh3ijjbhzyq.us-east-1.es.amazonaws.com'
+
+def lambda_handler(event, context):
+    os.environ['TZ'] = 'America/New_York'
+    time.tzset()
+    logger.debug('event.bot.name={}'.format(event['bot']['name']))
+    return dispatch(event)
+
+def dispatch(intent_request):
+    """
+    Called when the user specifies an intent for this bot.
+    """
+   
+    logger.debug('dispatch userId={}, intentName={}'.format(intent_request['sessionId'], intent_request['sessionState']['intent']['name']))
+
+    intent_name = intent_request['sessionState']['intent']['name']
+
+    # Dispatch to your bot's intent handlers
+    if intent_name == 'SearchIntent':
+        return searchPhotos(intent_request)
+    # elif intent_name == 'ThankYouIntent':
+    #     return thank(intent_request)
+    # elif intent_name == 'DiningSuggestionsIntent':
+    #     return suggest(intent_request)
+
+    raise Exception('Intent with name ' + intent_name + ' not supported')    
+    
+def searchPhotos(intent_request)
+    try:
+        # Given a search query “q”, disambiguate the query using the Amazon Lex bot.
+        query = event['queryStringParameters']['q']
+
+        bot_response = client.recognize_text(
+            botId='HXW4ESDEMT',
+            botAlias='TSTALIASID',
+            localeId='en_US',
+            sessionId='testuser',
+            text=msg_from_user[0]['unstructured']['text']
+        )
+        keywords = bot_response['slots']
+
+        # Search the OpenSearch "photos" index for results and return them accordingly.
+        if keywords:
+            search_query = ' OR '.join([f'labels:{keyword}' for keyword in keywords.values()])
+            os_response = os.search(
+                DomainName='my-photos-domain',
+                IndexName='photos',
+                Body={
+                    'query': {
+                        'query_string': {
+                            'query': search_query
+                        }
+                    }
+                }
+            )
+            results = [hit['_source'] for hit in os_response['hits']['hits']]
+        else:
+            results = []
+
+        # Return the search results
+        resp = {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json'
+            },
+            'body': json.dumps(results)
+        }
+        return resp
+    except Exception as e:
+        print(e)
+        raise e
