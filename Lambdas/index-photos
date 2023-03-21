@@ -1,0 +1,62 @@
+import json
+import urllib.parse
+import boto3
+
+#print('Loading function')
+
+s3 = boto3.client('s3')
+rekognition = boto3.client('rekognition')
+es = boto3.client('es')
+
+
+def lambda_handler(event, context):
+    #print("Received event: " + json.dumps(event, indent=2))
+
+    # Get the object and key from the event
+    bucket = event['Records'][0]['s3']['bucket']['name']
+    key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
+    try:
+        # Call Rekognition to detect labels in the image
+        response = rekognition.detect_labels(
+            Image={
+                'S3Object': {
+                    'Bucket': bucket,
+                    'Name': key
+                }
+            }
+        )
+        
+        # Use the S3 SDK’s headObject method to retrieve the S3 metadata created at the object’s upload time. Retrieve the x-amz-meta-customLabels metadata field, if applicable, and create a JSON array (A1) with the labels.
+        s3_head_response = s3.head_object(
+            Bucket=bucket,
+            Key=object_key
+        )
+        custom_labels_metadata = s3_head_response.get('Metadata', {}).get('x-amz-meta-customLabels')
+        labels = []
+        for label in response['Labels']:
+            labels.append(label['Name'])
+        if custom_labels_metadata:
+            custom_labels = custom_labels_metadata.split(',')
+            labels.extend(custom_labels)
+            
+        # Create the OpenSearch index JSON object
+        i = {
+            'objectKey': key,
+            'bucket': bucket,
+            'createdTimestamp': s3_head_response['LastModified'].isoformat(),
+            'labels': labels
+        }
+        
+        # Store a JSON object in an OpenSearch index (“photos”) that references the S3 object from the PUT event (E1) and append string labels to the labels array (A1), one for each label detected by Rekognition.
+        opensearch.index(
+            DomainName='my-photos-domain',
+            IndexName='photos',
+            Body=json.dumps(i)
+        )
+
+        return 'Indexing complete'
+
+    except Exception as e:
+        print(e)
+        print('Error getting object {} from bucket {}. Make sure they exist and your bucket is in the same region as this function.'.format(key, bucket))
+        raise e
