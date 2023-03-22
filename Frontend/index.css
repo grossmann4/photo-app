@@ -10,9 +10,9 @@
 }
 
 body {
-    font-family: 'Courier New', Courier, monospace;
-    color: white;
-    background-color: rgb(39, 37, 37);
+    font-family: Arial, Arial, Helvetica, sans-serif;
+    color: rgb(8, 8, 8);
+    background-color: rgb(241, 240, 240);
 }
 
 .container-fluid {
@@ -38,7 +38,7 @@ body {
     width: 100%;
     font-size: 1.5rem;
     padding: 10px 15px;
-    border: 2px solid #ccc;
+    border: 2px solid #000000;
     border-radius: 2px;
 }
 
@@ -54,7 +54,7 @@ body {
     text-align: center;
     font-size: 1.75rem;
     cursor: pointer;
-    color: #333;
+    color: #f1f0f0;
 }
 
 .search_info {
