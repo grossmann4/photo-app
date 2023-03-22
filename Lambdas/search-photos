@@ -1,15 +1,17 @@
 import boto3
 import json
 
-os = boto3.client('es')
 client = boto3.client('lexv2-runtime', region_name='us-east-1')
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 REGION = 'us-east-1'
-INDEX = 'photos'
 HOST = 'https://vpc-photos-3ovexijakbdotzinh3ijjbhzyq.us-east-1.es.amazonaws.com'
+
+def get_url(es_index, es_type, keyword):
+    url = HOST + '/' + es_index + '/' + es_type + '/_search?q=' + keyword.lower()
+    return url
 
 def lambda_handler(event, context):
     os.environ['TZ'] = 'America/New_York'
@@ -46,37 +48,56 @@ def searchPhotos(intent_request)
             botAlias='TSTALIASID',
             localeId='en_US',
             sessionId='testuser',
-            text=msg_from_user[0]['unstructured']['text']
+            text=query
         )
+        print("Bot Response: {}".format(json.dumps(bot_response)))
+
         keywords = bot_response['slots']
-
+    	
+    	headers = { "Content-Type": "application/json" }
+    					
         # Search the OpenSearch "photos" index for results and return them accordingly.
+        photo_matches = []
         if keywords:
-            search_query = ' OR '.join([f'labels:{keyword}' for keyword in keywords.values()])
-            os_response = os.search(
-                DomainName='my-photos-domain',
-                IndexName='photos',
-                Body={
-                    'query': {
-                        'query_string': {
-                            'query': search_query
-                        }
-                    }
-                }
-            )
-            results = [hit['_source'] for hit in os_response['hits']['hits']]
-        else:
-            results = []
+            for k in keywords:
+                search_query = get_url('photos', 'Photo', k)
+    		    print("Search Query URL: {}".format(search_query))
+    		    
+    		    es_response = requests.get(search_query, headers=headers).json()
+    			print("Search Response: {}".format(json.dumps(es_response)))
+    			
+    			results = es_response['hits']['hits']
+    			print("Search Hits: {}".format(json.dumps(results)))
+    
+    			for photo in results:
+    				labels = [word.lower() for word in photo['_source']['labels']]
+    				if k in labels:
+    					objectKey = photo['_source']['objectKey']
+    					photo_url = 'https://s3.amazonaws.com/ccbd-a2-photos/' + objectKey
+    					photo_matches.append(photo_url)
+    		    
+        # Return the matching photos
+    	if photo_matches:
+    		return {
+    			'statusCode': 200,
+    			'headers': {
+    				"Access-Control-Allow-Origin": "*",
+    				'Content-Type': 'application/json'
+    			},
+    			'body': json.dumps(photo_matches)
+    		}
+    	else:
+    		return {
+    			'statusCode': 200,
+    			'headers': {
+    				"Access-Control-Allow-Origin": "*",
+    				'Content-Type': 'application/json'
+    			},
+    			'body': json.dumps("No photos matching your keywords.")
+    		}
 
-        # Return the search results
-        resp = {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json'
-            },
-            'body': json.dumps(results)
-        }
-        return resp
     except Exception as e:
+        print("Error")
         print(e)
-        raise e
+
+
