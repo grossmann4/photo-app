@@ -41,9 +41,6 @@ function voiceSearch(){
     }
 }
 
-
-
-
 function textSearch() {
     var searchText = document.getElementById('search_query');
     if (!searchText.value) {
