@@ -3,6 +3,8 @@ import urllib.parse
 import boto3
 import requests
 import logging
+from requests_aws4auth import AWS4Auth
+from opensearchpy import OpenSearch, RequestsHttpConnection
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -10,6 +12,10 @@ logger.setLevel(logging.DEBUG)
 s3 = boto3.client('s3')
 rekognition = boto3.client('rekognition')
 HOST = 'https://search-photos-odm3sg2mbvdfjksgbihxh7bkbq.us-east-1.es.amazonaws.com'
+region = 'us-east-1'
+service = 'es'
+credentials = boto3.Session().get_credentials()
+awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
 
 def get_url(index, type):
     url = HOST + '/' + index + '/' + type
@@ -62,10 +68,13 @@ def lambda_handler(event, context):
         
         body = json.dumps(obj)
         headers = {"Content-Type": "application/json"}
-        r = requests.post(url=url, data=body, headers=headers)
-
+        r = requests.post(url, auth=awsauth, data=body, headers=headers)
+        
+        
+        logger.debug(r)
         print("Indexing photos complete.")
-
+        
+        
     except Exception as e:
         print("Error")
         print(e)
