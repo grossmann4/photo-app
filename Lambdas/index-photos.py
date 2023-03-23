@@ -2,10 +2,14 @@ import json
 import urllib.parse
 import boto3
 import requests
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
 s3 = boto3.client('s3')
 rekognition = boto3.client('rekognition')
-HOST = 'https://vpc-photos-3ovexijakbdotzinh3ijjbhzyq.us-east-1.es.amazonaws.com'
+HOST = 'https://search-photos-odm3sg2mbvdfjksgbihxh7bkbq.us-east-1.es.amazonaws.com'
 
 def get_url(index, type):
     url = HOST + '/' + index + '/' + type
@@ -32,7 +36,7 @@ def lambda_handler(event, context):
         # Use the S3 SDK’s headObject method to retrieve the S3 metadata created at the object’s upload time. Retrieve the x-amz-meta-customLabels metadata field, if applicable, and create a JSON array (A1) with the labels.
         s3_head_response = s3.head_object(
             Bucket=bucket,
-            Key=object_key
+            Key=key
         )
         custom_labels_metadata = s3_head_response.get('Metadata', {}).get('x-amz-meta-customLabels')
         labels = []
@@ -50,10 +54,12 @@ def lambda_handler(event, context):
             'labels': labels
         }
         print("JSON object: {}".format(obj))
+        logger.debug("here")
         
         # Store a JSON object in an OpenSearch index (“photos”) that references the S3 object from the PUT event (E1) and append string labels to the labels array (A1), one for each label detected by Rekognition.
         url = get_url('photos', 'Photo')
         print("ES URL: {}".format(url))
+        
         body = json.dumps(obj)
         headers = {"Content-Type": "application/json"}
         r = requests.post(url=url, data=body, headers=headers)
