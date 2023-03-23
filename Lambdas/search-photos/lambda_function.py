@@ -1,85 +1,103 @@
-import json
-import urllib.parse
 import boto3
-import requests
-import logging
-from requests_aws4auth import AWS4Auth
-from opensearchpy import OpenSearch, RequestsHttpConnection
+import json
+
+client = boto3.client('lexv2-runtime', region_name='us-east-1')
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-s3 = boto3.client('s3')
-rekognition = boto3.client('rekognition')
-HOST = 'https://search-photos-odm3sg2mbvdfjksgbihxh7bkbq.us-east-1.es.amazonaws.com'
-region = 'us-east-1'
-service = 'es'
-credentials = boto3.Session().get_credentials()
-awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
+REGION = 'us-east-1'
+HOST = 'https://vpc-photos-3ovexijakbdotzinh3ijjbhzyq.us-east-1.es.amazonaws.com'
 
-def get_url(index, type):
-    url = HOST + '/' + index + '/' + type
+def get_url(es_index, es_type, keyword):
+    url = HOST + '/' + es_index + '/' + es_type + '/_search?q=' + keyword.lower()
     return url
 
 def lambda_handler(event, context):
-    print("Received event: {}".format(json.dumps(event)))
+    os.environ['TZ'] = 'America/New_York'
+    time.tzset()
+    logger.debug('event.bot.name={}'.format(event['bot']['name']))
+    return dispatch(event)
 
-    # Get the object and key from the event
-    bucket = event['Records'][0]['s3']['bucket']['name']
-    key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
+def dispatch(intent_request):
+    """
+    Called when the user specifies an intent for this bot.
+    """
+   
+    logger.debug('dispatch userId={}, intentName={}'.format(intent_request['sessionId'], intent_request['sessionState']['intent']['name']))
+
+    intent_name = intent_request['sessionState']['intent']['name']
+
+    # Dispatch to your bot's intent handlers
+    if intent_name == 'SearchIntent':
+        return searchPhotos(intent_request)
+    # elif intent_name == 'ThankYouIntent':
+    #     return thank(intent_request)
+    # elif intent_name == 'DiningSuggestionsIntent':
+    #     return suggest(intent_request)
+
+    raise Exception('Intent with name ' + intent_name + ' not supported')    
+    
+def searchPhotos(intent_request)
     try:
-        # Call Rekognition to detect the labels of the image
-        response = rekognition.detect_labels(
-            Image={
-                'S3Object': {
-                    'Bucket': bucket,
-                    'Name': key
-                }
-            }
+        # Given a search query “q”, disambiguate the query using the Amazon Lex bot.
+        query = event['queryStringParameters']['q']
+
+        bot_response = client.recognize_text(
+            botId='HXW4ESDEMT',
+            botAlias='TSTALIASID',
+            localeId='en_US',
+            sessionId='testuser',
+            text=query
         )
-        print("Image Labels: {}".format(response['Labels']))
-        
-        # Use the S3 SDK’s headObject method to retrieve the S3 metadata created at the object’s upload time. Retrieve the x-amz-meta-customLabels metadata field, if applicable, and create a JSON array (A1) with the labels.
-        s3_head_response = s3.head_object(
-            Bucket=bucket,
-            Key=key
-        )
-        custom_labels_metadata = s3_head_response.get('Metadata', {}).get('x-amz-meta-customLabels')
-        labels = []
-        for label in response['Labels']:
-            labels.append(label['Name'])
-        if custom_labels_metadata:
-            custom_labels = custom_labels_metadata.split(',')
-            labels.extend(custom_labels)
-            
-        # Create the JSON object
-        obj = {
-            'objectKey': key,
-            'bucket': bucket,
-            'createdTimestamp': s3_head_response['LastModified'].isoformat(),
-            'labels': labels
-        }
-        print("JSON object: {}".format(obj))
-        logger.debug("here")
-        
-        # Store a JSON object in an OpenSearch index (“photos”) that references the S3 object from the PUT event (E1) and append string labels to the labels array (A1), one for each label detected by Rekognition.
-        url = get_url('photos', 'Photo')
-        print("ES URL: {}".format(url))
-        
-        body = json.dumps(obj)
-        headers = {"Content-Type": "application/json"}
-        r = requests.post(url, auth=awsauth, data=body, headers=headers)
-        
-        
-        logger.debug(r)
-        print("Indexing photos complete.")
-        
-        
+        print("Bot Response: {}".format(json.dumps(bot_response)))
+
+        keywords = bot_response['slots']
+    	
+    	headers = { "Content-Type": "application/json" }
+    					
+        # Search the OpenSearch "photos" index for results and return them accordingly.
+        photo_matches = []
+        if keywords:
+            for k in keywords:
+                search_query = get_url('photos', 'Photo', k)
+    		    print("Search Query URL: {}".format(search_query))
+    		    
+    		    es_response = requests.get(search_query, headers=headers).json()
+    			print("Search Response: {}".format(json.dumps(es_response)))
+    			
+    			results = es_response['hits']['hits']
+    			print("Search Hits: {}".format(json.dumps(results)))
+    
+    			for photo in results:
+    				labels = [word.lower() for word in photo['_source']['labels']]
+    				if k in labels:
+    					objectKey = photo['_source']['objectKey']
+    					photo_url = 'https://s3.amazonaws.com/ccbd-a2-photos/' + objectKey
+    					photo_matches.append(photo_url)
+    		    
+        # Return the matching photos
+    	if photo_matches:
+    		return {
+    			'statusCode': 200,
+    			'headers': {
+    				"Access-Control-Allow-Origin": "*",
+    				'Content-Type': 'application/json'
+    			},
+    			'body': json.dumps(photo_matches)
+    		}
+    	else:
+    		return {
+    			'statusCode': 200,
+    			'headers': {
+    				"Access-Control-Allow-Origin": "*",
+    				'Content-Type': 'application/json'
+    			},
+    			'body': json.dumps("No photos matching your keywords.")
+    		}
+
     except Exception as e:
         print("Error")
         print(e)
 
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
-    }
+
