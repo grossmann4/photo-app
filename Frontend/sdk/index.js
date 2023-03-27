@@ -1,13 +1,13 @@
 
-
-var apigClient = apigClientFactory.newClient();
 window.SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition
 
 function voiceSearch(){
     if ('SpeechRecognition' in window) {
         console.log("SpeechRecognition is Working");
+        alert("working")
     } else {
         console.log("SpeechRecognition is Not Working");
+        alert("not working")
     }
     
     var inputSearchQuery = document.getElementById("search_query");
@@ -20,6 +20,7 @@ function voiceSearch(){
         recognition.start();
     } else if (micButton.innerHTML == "mic_off"){
         recognition.stop();
+
     }
 
     recognition.addEventListener("start", function() {
@@ -63,11 +64,15 @@ function searchPhotos(searchText) {
         'q' : searchText
     };
     
-    apigClient.searchGet(params, {}, {})
+    var body = {
+        'Content-Type': 'application/json'
+    }
+
+    sdk.searchGet(params, params, body)
         .then(function(result) {
             console.log("Result : ", result);
 
-            image_paths = result["data"]["body"]["imagePaths"];
+            image_paths = result["data"]["body"];
             console.log("image_paths : ", image_paths);
 
             var photosDiv = document.getElementById("photos_search_results");
