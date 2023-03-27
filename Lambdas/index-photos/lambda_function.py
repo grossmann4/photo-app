@@ -11,14 +11,16 @@ logger.setLevel(logging.DEBUG)
 
 s3 = boto3.client('s3')
 rekognition = boto3.client('rekognition')
-HOST = 'https://search-photos-odm3sg2mbvdfjksgbihxh7bkbq.us-east-1.es.amazonaws.com'
+HOST = 'search-photos-3ovexijakbdotzinh3ijjbhzyq.us-east-1.es.amazonaws.com'
+INDEX='photos'
 region = 'us-east-1'
 service = 'es'
 credentials = boto3.Session().get_credentials()
 awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
+ca_certs_path = '/full/path/to/root-ca.pem'
 
 def get_url(index, type):
-    url = HOST + '/' + index + '/' + type
+    url = 'https://search-photos-3ovexijakbdotzinh3ijjbhzyq.us-east-1.es.amazonaws.com/' + index + '/_doc/' + type
     return url
 
 def lambda_handler(event, context):
@@ -29,6 +31,7 @@ def lambda_handler(event, context):
     key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
     try:
         # Call Rekognition to detect the labels of the image
+        print("calling rekognition to detect labels")
         response = rekognition.detect_labels(
             Image={
                 'S3Object': {
@@ -52,6 +55,8 @@ def lambda_handler(event, context):
             custom_labels = custom_labels_metadata.split(',')
             labels.extend(custom_labels)
             
+        logger.debug("CREATING JSON OBJECT")
+        
         # Create the JSON object
         obj = {
             'objectKey': key,
@@ -60,18 +65,38 @@ def lambda_handler(event, context):
             'labels': labels
         }
         print("JSON object: {}".format(obj))
-        logger.debug("here")
+        logger.debug("created json object")
+        
+        # # create "photos" index
+        # client = OpenSearch(hosts=[{
+        #     'host': HOST,
+        #     'port': 443
+        #     }],
+        #     http_auth=awsauth,
+        #     use_ssl=True,
+        #     verify_certs=True,
+        #     connection_class=RequestsHttpConnection)
+        
+        # logger.debug("creating photos index")
+        # index_name = 'photos'
+        # index_body = {
+        #   'settings': {
+        #     'index': {
+        #       'number_of_shards': 1
+        #     }
+        #   }
+        # }
+        # resp = client.indices.create(index_name, body=index_body)
+        # logger.debug("created photo index")
         
         # Store a JSON object in an OpenSearch index (“photos”) that references the S3 object from the PUT event (E1) and append string labels to the labels array (A1), one for each label detected by Rekognition.
-        url = get_url('photos', 'Photo')
+        url = get_url('photos', key)
         print("ES URL: {}".format(url))
         
-        body = json.dumps(obj)
+        body = json.loads(json.dumps(obj))
         headers = {"Content-Type": "application/json"}
-        r = requests.post(url, auth=awsauth, data=body, headers=headers)
-        
-        
-        logger.debug(r)
+        r = requests.post(url, auth=awsauth, json=body, headers=headers)
+        print(r.text)
         print("Indexing photos complete.")
         
         
