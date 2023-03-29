@@ -67,14 +67,12 @@ function searchPhotos(searchText) {
     var body = {
         'Content-Type': 'application/json'
     }
-
     sdk.searchGet(params, params, body)
         .then(function(result) {
             console.log("Result : ", result);
-
             image_paths = result["data"]["body"];
             console.log("image_paths : ", image_paths);
-
+            alert(image_paths);
             var photosDiv = document.getElementById("photos_search_results");
             photosDiv.innerHTML = "";
 
