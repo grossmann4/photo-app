@@ -4,10 +4,8 @@ window.SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecogn
 function voiceSearch(){
     if ('SpeechRecognition' in window) {
         console.log("SpeechRecognition is Working");
-        alert("working")
     } else {
         console.log("SpeechRecognition is Not Working");
-        alert("not working")
     }
     
     var inputSearchQuery = document.getElementById("search_query");
