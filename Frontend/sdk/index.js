@@ -4,40 +4,67 @@ window.SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecogn
 function voiceSearch(){
     if ('SpeechRecognition' in window) {
         console.log("SpeechRecognition is Working");
+        let final_transcript = "";
+        let speechRecognition = new window.SpeechRecognition();
+        speechRecognition.continuous = true;
+        speechRecognition.interimResults = true;
+        
+
+        speechRecognition.onstart = () => {
+            // Show the Status Element
+            console.log("here");
+            document.querySelector("#status").style.display = "block";
+        };
+        speechRecognition.onerror = () => {
+            // Hide the Status Element
+            console.log("error");
+            document.querySelector("#status").style.display = "none";
+        };
+        speechRecognition.onend = () => {
+            // Hide the Status Element
+            console.log("there");
+            document.querySelector("#status").style.display = "none";
+        };
+
+        speechRecognition.onresult = (event) => {
+            // Create the interim transcript string locally because we don't want it to persist like final transcript
+            let interim_transcript = "";
+        
+            // Loop through the results from the speech recognition object.
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                // If the result item is Final, add it to Final Transcript, Else add it to Interim transcript
+                if (event.results[i].isFinal) {
+                final_transcript += event.results[i][0].transcript;
+                } else {
+                interim_transcript += event.results[i][0].transcript;
+                }
+            }
+        
+            // Set the Final transcript and Interim transcript.
+            document.querySelector("#search_query").value = final_transcript;
+            var t = document.getElementById('search_query').value;
+            console.log("val: " + t);
+            //document.querySelector("#interim").innerHTML = interim_transcript;
+        };
+    
+        // Set the onClick property of the start button
+        document.querySelector("#start").onclick = () => {
+        // Start the Speech Recognition
+        speechRecognition.start();
+        console.log("starting");
+        };
+        // Set the onClick property of the stop button
+        document.querySelector("#stop").onclick = () => {
+        // Stop the Speech Recognition
+        speechRecognition.stop();
+        console.log("stopping");
+        };
+
+
     } else {
         console.log("SpeechRecognition is Not Working");
     }
-    
-    var inputSearchQuery = document.getElementById("search_query");
-    const recognition = new window.SpeechRecognition();
-    //recognition.continuous = true;
 
-    micButton = document.getElementById("mic_search");  
-    
-    if (micButton.innerHTML == "mic") {
-        recognition.start();
-    } else if (micButton.innerHTML == "mic_off"){
-        recognition.stop();
-
-    }
-
-    recognition.addEventListener("start", function() {
-        micButton.innerHTML = "mic_off";
-        console.log("Recording.....");
-    });
-
-    recognition.addEventListener("end", function() {
-        console.log("Stopping recording.");
-        micButton.innerHTML = "mic";
-    });
-
-    recognition.addEventListener("result", resultOfSpeechRecognition);
-    function resultOfSpeechRecognition(event) {
-        const current = event.resultIndex;
-        transcript = event.results[current][0].transcript;
-        inputSearchQuery.value = transcript;
-        console.log("transcript : ", transcript)
-    }
 }
 
 function textSearch() {
