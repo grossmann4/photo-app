@@ -8,7 +8,7 @@ from opensearchpy import OpenSearch, RequestsHttpConnection
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-
+# Code Build Comment
 s3 = boto3.client('s3')
 rekognition = boto3.client('rekognition')
 HOST = 'search-photos-3ovexijakbdotzinh3ijjbhzyq.us-east-1.es.amazonaws.com'

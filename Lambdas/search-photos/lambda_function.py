@@ -11,7 +11,7 @@ client = boto3.client('lexv2-runtime', region_name='us-east-1')
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-
+# Code Build Comment
 REGION = 'us-east-1'
 HOST = 'https://search-photos-3ovexijakbdotzinh3ijjbhzyq.us-east-1.es.amazonaws.com'
 service = 'es'
