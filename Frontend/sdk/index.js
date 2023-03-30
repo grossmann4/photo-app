@@ -128,7 +128,7 @@ function uploadPhoto() {
     console.log('File : ', file);
     document.getElementById('uploaded_file').value = "";
 
-    if ((filePath == "") || (!['png', 'jpg', 'jpeg'].includes(filePath.split(".")[1]))) {
+    if ((file['name'] == "") || (!['png', 'jpg', 'jpeg'].includes(file['name'].split(".")[1]))) {
         alert("Please upload a valid .png/.jpg/.jpeg file!");
     } else {
 
@@ -143,7 +143,7 @@ function uploadPhoto() {
         reader.onload = function (event) {
             body = btoa(event.target.result);
             console.log('Reader body : ', body);
-            return apigClient.folderItemPut(params, additionalParams)
+            return apigClient.uploadPut(params, additionalParams)
             .then(function(result) {
                 console.log(result);
             })
