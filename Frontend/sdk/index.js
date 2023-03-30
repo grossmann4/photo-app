@@ -70,9 +70,8 @@ function searchPhotos(searchText) {
     sdk.searchGet(params, params, body)
         .then(function(result) {
             console.log("Result : ", result);
-            image_paths = result["data"]["body"];
+            image_paths = result["data"];
             console.log("image_paths : ", image_paths);
-            alert(image_paths);
             var photosDiv = document.getElementById("photos_search_results");
             photosDiv.innerHTML = "";
 
