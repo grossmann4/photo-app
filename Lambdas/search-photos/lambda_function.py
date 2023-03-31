@@ -6,12 +6,13 @@ import os
 import time
 from requests_aws4auth import AWS4Auth
 from opensearchpy import OpenSearch, RequestsHttpConnection
+import inflection
 
 client = boto3.client('lexv2-runtime', region_name='us-east-1')
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-# Code Build Comment
+
 REGION = 'us-east-1'
 HOST = 'https://search-photos-3ovexijakbdotzinh3ijjbhzyq.us-east-1.es.amazonaws.com'
 service = 'es'
@@ -28,41 +29,44 @@ def get_url(index, keyword):
 
 def lambda_handler(event, context):
     print("Event: {}".format(json.dumps(event)))
+            
     #bucket = event['Records'][0]['s3']['bucket']['name']
     bucket = 'ccbd-a2-photos'
     try:
         # Given a search query “q”, disambiguate the query using the Amazon Lex bot.
-        query = event['inputTranscript']
+        query = event['queryStringParameters']['q']
         print("Query: {}".format(json.dumps(query)))
 
-        # bot_response = client.recognize_text(
-        #     botId='HXW4ESDEMT',
-        #     botAliasId='TSTALIASID',
-        #     localeId='en_US',
-        #     sessionId='testuser',
-        #     text=query
-        # )
-        # print("Bot Response: {}".format(json.dumps(bot_response)))
+        bot_response = client.recognize_text(
+            botId='HXW4ESDEMT',
+            botAliasId='TSTALIASID',
+            localeId='en_US',
+            sessionId='testuser',
+            text=query
+        )
+        print("Bot Response: {}".format(json.dumps(bot_response)))
 
-        slots = event['interpretations'][0]['intent']['slots']
+        slots = bot_response['interpretations'][0]['intent']['slots']
         print("Slots: {}".format(json.dumps(slots)))
         keywords = []
-        print(slots['photo1']['value']['interpretedValue'])
-        print(slots['photo2']['value']['interpretedValue'])
-        keywords.append(slots['photo1']['value']['interpretedValue'])
-        keywords.append(slots['photo2']['value']['interpretedValue'])
+        if slots['photo1']:
+            print(slots['photo1']['value']['interpretedValue'])
+            keywords.append(slots['photo1']['value']['interpretedValue'])
+        if slots['photo2']:
+            print(slots['photo2']['value']['interpretedValue'])
+            keywords.append(slots['photo2']['value']['interpretedValue'])
         print("Keywords: {}".format(json.dumps(keywords)))
         
-        headers = {"Content-Type": "application/json"}
+        h = {"Content-Type": "application/json"}
         
         # Search the OpenSearch "photos" index for results and return them accordingly.
         photo_matches = []
         if keywords:
             for k in keywords:
-                search_query = get_url('photos', k)
+                search_query = get_url('photos', inflection.singularize(k))
                 print("Search Query URL: {}".format(search_query))
 
-                es_response = requests.get(search_query, auth=awsauth, headers=headers).json()
+                es_response = requests.get(search_query, auth=awsauth, headers=h).json()
                 print("Search Response: {}".format(json.dumps(es_response)))
                 
                 results = es_response['hits']['hits']
@@ -77,28 +81,33 @@ def lambda_handler(event, context):
                             photo_matches.append(photo_url)
                             print("Photo url: {}".format(photo_url))
         
-        if photo_matches:
-            return 
-            {
-                'statusCode': 200,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Content-Type': 'application/json'
-                },
-                'body': json.dumps(photo_matches)
+        print("Photo Matches")
+        print(photo_matches)
+        return {
+            'statusCode': 200,
+            'body': json.dumps(photo_matches),
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': '*',
+                'Content-Type': 'application/json'
             }
-        else:
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Content-Type': 'application/json'
-                },
-                'body': json.dumps("No photos matching your keywords.")
-            }
+        }
+
+
 
     except Exception as e:
         print("Error")
         print(e)
+        return {
+            'statusCode': 200,
+            'body': json.dumps([]),
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': '*',
+                'Content-Type': 'application/json'
+            }
+        }
 
 
