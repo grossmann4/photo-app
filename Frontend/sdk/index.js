@@ -143,7 +143,7 @@ function uploadPhoto() {
         reader.onload = function (event) {
             body = btoa(event.target.result);
             console.log('Reader body : ', body);
-            return apigClient.uploadPut(params, additionalParams)
+            return sdk.uploadPut(params, additionalParams)
             .then(function(result) {
                 console.log(result);
             })
