@@ -132,7 +132,7 @@ function uploadPhoto() {
         alert("Please upload a valid .png/.jpg/.jpeg file!");
     } else {
 
-        var params = {};
+        var params = {'key': file['name']};
         var additionalParams = {
             headers: {
                 'Access-Control-Allow-Origin': '*',

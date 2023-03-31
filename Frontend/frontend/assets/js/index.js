@@ -4,42 +4,67 @@ window.SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecogn
 function voiceSearch(){
     if ('SpeechRecognition' in window) {
         console.log("SpeechRecognition is Working");
-        alert("working")
+        let final_transcript = "";
+        let speechRecognition = new window.SpeechRecognition();
+        speechRecognition.continuous = true;
+        speechRecognition.interimResults = true;
+        
+
+        speechRecognition.onstart = () => {
+            // Show the Status Element
+            console.log("here");
+            document.querySelector("#status").style.display = "block";
+        };
+        speechRecognition.onerror = () => {
+            // Hide the Status Element
+            console.log("error");
+            document.querySelector("#status").style.display = "none";
+        };
+        speechRecognition.onend = () => {
+            // Hide the Status Element
+            console.log("there");
+            document.querySelector("#status").style.display = "none";
+        };
+
+        speechRecognition.onresult = (event) => {
+            // Create the interim transcript string locally because we don't want it to persist like final transcript
+            let interim_transcript = "";
+        
+            // Loop through the results from the speech recognition object.
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                // If the result item is Final, add it to Final Transcript, Else add it to Interim transcript
+                if (event.results[i].isFinal) {
+                final_transcript += event.results[i][0].transcript;
+                } else {
+                interim_transcript += event.results[i][0].transcript;
+                }
+            }
+        
+            // Set the Final transcript and Interim transcript.
+            document.querySelector("#search_query").value = final_transcript;
+            var t = document.getElementById('search_query').value;
+            console.log("val: " + t);
+            //document.querySelector("#interim").innerHTML = interim_transcript;
+        };
+    
+        // Set the onClick property of the start button
+        document.querySelector("#start").onclick = () => {
+        // Start the Speech Recognition
+        speechRecognition.start();
+        console.log("starting");
+        };
+        // Set the onClick property of the stop button
+        document.querySelector("#stop").onclick = () => {
+        // Stop the Speech Recognition
+        speechRecognition.stop();
+        console.log("stopping");
+        };
+
+
     } else {
         console.log("SpeechRecognition is Not Working");
-        alert("not working")
-    }
-    
-    var inputSearchQuery = document.getElementById("search_query");
-    const recognition = new window.SpeechRecognition();
-    //recognition.continuous = true;
-
-    micButton = document.getElementById("mic_search");  
-    
-    if (micButton.innerHTML == "mic") {
-        recognition.start();
-    } else if (micButton.innerHTML == "mic_off"){
-        recognition.stop();
-
     }
 
-    recognition.addEventListener("start", function() {
-        micButton.innerHTML = "mic_off";
-        console.log("Recording.....");
-    });
-
-    recognition.addEventListener("end", function() {
-        console.log("Stopping recording.");
-        micButton.innerHTML = "mic";
-    });
-
-    recognition.addEventListener("result", resultOfSpeechRecognition);
-    function resultOfSpeechRecognition(event) {
-        const current = event.resultIndex;
-        transcript = event.results[current][0].transcript;
-        inputSearchQuery.value = transcript;
-        console.log("transcript : ", transcript)
-    }
 }
 
 function textSearch() {
@@ -55,26 +80,23 @@ function textSearch() {
 }
 
 function searchPhotos(searchText) {
+
     console.log(searchText);
     document.getElementById('search_query').value = searchText;
     document.getElementById('photos_search_results').innerHTML = "<h4 style=\"text-align:center\">";
-    alert(searchText)
+
     var params = {
         'q' : searchText
     };
-    var body = { 'q': searchText };
-    var additionalParams = {headers: {
-        'Content-Type': 'application/json',
-        'body': searchText
-    }};
     
-    sdk.searchGet(params, body, {})
+    var body = {
+        'Content-Type': 'application/json'
+    }
+    sdk.searchGet(params, params, body)
         .then(function(result) {
             console.log("Result : ", result);
-            image_paths = result["data"]["body"];
-            alert(image_paths)
+            image_paths = result["data"];
             console.log("image_paths : ", image_paths);
-
             var photosDiv = document.getElementById("photos_search_results");
             photosDiv.innerHTML = "";
 
@@ -106,11 +128,11 @@ function uploadPhoto() {
     console.log('File : ', file);
     document.getElementById('uploaded_file').value = "";
 
-    if ((filePath == "") || (!['png', 'jpg', 'jpeg'].includes(filePath.split(".")[1]))) {
+    if ((file['name'] == "") || (!['png', 'jpg', 'jpeg'].includes(file['name'].split(".")[1]))) {
         alert("Please upload a valid .png/.jpg/.jpeg file!");
     } else {
 
-        var params = {};
+        var params = {'key': file['name']};
         var additionalParams = {
             headers: {
                 'Access-Control-Allow-Origin': '*',
@@ -121,7 +143,7 @@ function uploadPhoto() {
         reader.onload = function (event) {
             body = btoa(event.target.result);
             console.log('Reader body : ', body);
-            return apigClient.folderItemPut(params, additionalParams)
+            return sdk.uploadPut(params, additionalParams)
             .then(function(result) {
                 console.log(result);
             })
