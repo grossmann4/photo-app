@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: '2023-03-31'
+Description: Cloud Formation Template for Photo App
+Resources:
+  AssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicReadWrite
+    
+  ClientBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+        
+  AssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: PublicWebsitePolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadWriteForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: ['s3:GetObject','s3:PutObject']
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref AssetsBucket
+                - /*
+    Bucket: !Ref AssetsBucket
+
+  ClientBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: PublicWebsitePolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref ClientBucket
+                - /*
+    Bucket: !Ref ClientBucket
+
+  LambdaIndexPhotos:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: 'https://github.com/allisonreiling/photoapp/blob/main/Lambdas/index-photos/lambda_function.py'
+      FunctionName: 'cf-index-photos'
+      Role: 'arn:aws:iam::705981116321:role/service-role/index-photos-role-z4vxni7a'
+      Runtime: 'python3.9'
+      Timeout: 600
+   
+  LambdaSearchPhotos:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: 'https://github.com/allisonreiling/photoapp/blob/main/Lambdas/search-photos/lambda_function.py'
+      FunctionName: 'cf-search-photos'
+      Role: 'arn:aws:iam::705981116321:role/service-role/search-photos-role-6cqrgot9'
+      Runtime: 'python3.9'
+      Timeout: 600
+      
+  LambdaIndexPhotosPermissions:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: 'lambda:[*]'
+      FunctionName: 'arn:aws:iam::705981116321:role/service-role/index-photos-role-z4vxni7a'
+      Principal: '*'
+      
+  LambdaSearchPhotosPermissions:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: 'lambda:[*]'
+      FunctionName: 'arn:aws:iam::705981116321:role/service-role/search-photos-role-6cqrgot9'
+      Principal: '*'
+
+  OpenSearchPhotos:
+    Type: AWS::OpenSearchService::Domain
+    Properties: 
+      AccessPolicies:
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+           {
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "*"
+            },
+            "Action": "es:*",
+            "Resource": "*"
+           }
+          ]
+        }
+      DomainName: 'cf-photos'
+  
+  CFAPIGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      #ApiKeySourceType: String
+      BinaryMediaTypes: ['image/jpeg','image/png','image/jpg']
+      CloneFrom: '3s9fp0pvaf'
+      Name: 'CF API Photo Search'
+      Policy: 
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+           {
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "*"
+            },
+            "Action": [
+              "s3:*",
+              "s3-object-lambda:*"
+            ],
+            "Resource": "*"
+           }
+          ]
+        }
+
