@@ -29,6 +29,16 @@ def get_url(index, keyword):
 
 def lambda_handler(event, context):
     print("Event: {}".format(json.dumps(event)))
+    # return {
+    #     'statusCode': 200,
+    #     'body': json.dumps([]),
+    #     'headers': {
+    #         'Access-Control-Allow-Origin': '*',
+    #         'Access-Control-Allow-Methods': '*',
+    #         'Access-Control-Allow-Headers': '*',
+    #         'Content-Type': 'application/json'
+    #     }
+    # }
             
     #bucket = event['Records'][0]['s3']['bucket']['name']
     bucket = 'ccbd-a2-photos'
@@ -73,13 +83,15 @@ def lambda_handler(event, context):
                 print("Search Hits: {}".format(json.dumps(results)))
                 
                 if results:
+                    print("inside if results")
                     for photo in results:
-                        labels = [word.lower() for word in photo['_source']['labels']]
-                        if k in labels:
-                            photo_key = photo['_source']['objectKey']
-                            photo_url = 'https://' + bucket + '.s3.amazonaws.com/' + photo_key
-                            photo_matches.append(photo_url)
-                            print("Photo url: {}".format(photo_url))
+                        # labels = [word.lower() for word in photo['_source']['labels']]
+                        # if k in labels:
+                        # print("inside if k in labels")
+                        photo_key = photo['_source']['objectKey']
+                        photo_url = 'https://' + bucket + '.s3.amazonaws.com/' + photo_key
+                        photo_matches.append(photo_url)
+                        print("Photo url: {}".format(photo_url))
         
         print("Photo Matches")
         print(photo_matches)
@@ -93,7 +105,17 @@ def lambda_handler(event, context):
                 'Content-Type': 'application/json'
             }
         }
-
+        # return 
+        # {
+        #     'statusCode': 200,
+        #     'headers': {
+        #         'Access-Control-Allow-Origin': '*',
+        #         'Content-Type': 'application/json',
+        #         'Access-Control-Allow-Methods': '*',
+        #         'Access-Control-Allow-Headers': '*'
+        #     },
+        #     'body': json.dumps([])
+        # }
 
 
     except Exception as e:
@@ -109,5 +131,3 @@ def lambda_handler(event, context):
                 'Content-Type': 'application/json'
             }
         }
-
-
