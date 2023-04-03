@@ -136,7 +136,8 @@ function uploadPhoto() {
         var additionalParams = {
             headers: {
                 'Access-Control-Allow-Origin': '*',
-                'Content-Type': file.type
+                'Content-Type': file.type,
+                'x-amz-meta-customLabels': custom_labels
             }
         };
         
