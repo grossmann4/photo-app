@@ -66,8 +66,14 @@ paths:
   /upload:
     put:
       operationId: "uploadPhoto"
+      consumes:
+      - "application/xml"
+      - "application/json"
+      - "image/jpeg"
       produces:
       - "application/json"
+      - "application/xml"
+      - "image/jpeg"
       parameters:
       - name: "Access-Control-Allow-Origin"
         in: "header"
@@ -81,6 +87,21 @@ paths:
         in: "header"
         required: false
         type: "string"
+      - in: "body"
+        name: "Photo"
+        required: true
+        schema:
+          $ref: "#/definitions/Photo"
+      - in: "body"
+        name: "Photo"
+        required: true
+        schema:
+          $ref: "#/definitions/Photo"
+      - in: "body"
+        name: "Photo"
+        required: true
+        schema:
+          $ref: "#/definitions/Photo"
       responses:
         "200":
           description: "200 response"
