@@ -24,6 +24,7 @@ def get_url(index, type):
     return url
 
 def lambda_handler(event, context):
+    print("code pipeline")
     print("Received event: {}".format(json.dumps(event)))
 
     # Get the object and key from the event
